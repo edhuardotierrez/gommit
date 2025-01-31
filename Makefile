@@ -4,6 +4,7 @@ GOBUILD=$(GOCMD) build
 GOTEST=$(GOCMD) test
 GOMOD=$(GOCMD) mod
 BINARY_NAME=gommit
+GIT=git
 
 # Build parameters
 BUILD_DIR=build
@@ -40,4 +41,10 @@ run:
 
 # Generate git commit message for current changes
 commit-msg:
-	./$(BUILD_DIR)/$(BINARY_NAME) 
+	./$(BUILD_DIR)/$(BINARY_NAME)
+
+.PHONY: release
+release:
+	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_FILE)
+	$(GIT) tag v$(VERSION)
+	$(GIT) push origin v$(VERSION)
