@@ -58,7 +58,9 @@ commit-msg: build
 	./$(BUILD_DIR)/$(BINARY_NAME)
 
 # Create and push a new release tag
-release: clean test release-builds
+release: clean test release-builds git-tag
+
+git-tag:
 	$(GIT) tag v$(VERSION)
 	$(GIT) push origin v$(VERSION)
 
