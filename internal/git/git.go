@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"os"
@@ -74,4 +75,50 @@ func Commit(message string) error {
 	}
 
 	return nil
+}
+
+// GetUnstagedChanges returns a list of modified but unstaged files
+func GetUnstagedChanges() ([]StagedChange, error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("error getting unstaged changes: %w", err)
+	}
+
+	var changes []StagedChange
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(line) < 4 {
+			continue
+		}
+		
+		// Check for unstaged changes (M in second column)
+		statusCode := line[0:2]
+		if statusCode[1] == 'M' || statusCode[1] == '?' || statusCode[1] == 'D' {
+			path := strings.TrimSpace(line[3:])
+			status := getStatusDescription(statusCode[1])
+			changes = append(changes, StagedChange{
+				Path:   path,
+				Status: status,
+			})
+		}
+	}
+
+	return changes, nil
+}
+
+// Helper function to convert status codes to descriptions
+func getStatusDescription(code byte) string {
+	switch code {
+	case 'M':
+		return "modified"
+	case '?':
+		return "untracked"
+	case 'D':
+		return "deleted"
+	default:
+		return "unknown"
+	}
 } 
