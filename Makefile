@@ -43,8 +43,7 @@ run:
 commit-msg:
 	./$(BUILD_DIR)/$(BINARY_NAME)
 
-.PHONY: release
-release: build
-	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_FILE)
+.PHONY: git-tag
+git-tag:
 	$(GIT) tag v$(VERSION)
 	$(GIT) push origin v$(VERSION)
