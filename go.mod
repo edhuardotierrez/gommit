@@ -9,6 +9,7 @@ require (
 )
 
 require (
+	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/henomis/cohere-go v1.1.2 // indirect
 	github.com/henomis/restclientgo v1.2.0 // indirect

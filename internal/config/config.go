@@ -1,16 +1,23 @@
 package config
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/edhuardotierrez/gommit/internal/llm"
-	"github.com/manifoldco/promptui"
+	"github.com/edhuardotierrez/gommit/internal/setup"
+	"github.com/edhuardotierrez/gommit/internal/types"
 )
+
+// GetConfigPath returns the path to the configuration file
+func GetConfigPath() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "gommit.json" // fallback to current directory
+	}
+	return filepath.Join(homeDir, "gommit.json")
+}
 
 var sampleConfigMessage = `
 {
@@ -37,7 +44,7 @@ type Config struct {
 }
 
 // Load reads the configuration file from the user's home directory
-func Load() (*Config, error) {
+func Load() (*types.Config, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("could not get user home directory: %w", err)
@@ -47,12 +54,14 @@ func Load() (*Config, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return createConfigWizard(configPath)
+			_, _ = setup.CreateConfigWizard(configPath)
+			fmt.Printf("\n🚀 You're all set! Run 'gommit' to start using gommit.\n")
+			os.Exit(0)
 		}
 		return nil, fmt.Errorf("could not read config file at %s: %w\n%s", configPath, err, sampleConfigMessage)
 	}
 
-	var config Config
+	var config types.Config
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("could not parse config file: %w", err)
 	}
@@ -71,103 +80,4 @@ func Load() (*Config, error) {
 	}
 
 	return &config, nil
-}
-
-// createConfigWizard creates a new config file with user input
-func createConfigWizard(configPath string) (*Config, error) {
-	fmt.Println("\n🎉 Welcome to gommit configuration wizard! 🎉")
-	fmt.Println("This wizard will help you set up your gommit configuration.\n")
-
-	// Ask if user wants to use the wizard
-	prompt := promptui.Prompt{
-		Label:     "Would you like to configure gommit using the wizard",
-		IsConfirm: true,
-	}
-
-	if _, err := prompt.Run(); err != nil {
-		return nil, fmt.Errorf("wizard cancelled by user")
-	}
-
-	// Select LLM provider
-	providerSelect := promptui.Select{
-		Label: "Select your preferred LLM provider",
-		Items: func() []string {
-			var items []string
-			for _, p := range llm.Providers {
-				items = append(items, p.Title)
-			}
-			return items
-		}(),
-	}
-
-	_, provider, err := providerSelect.Run()
-	if err != nil {
-		return nil, fmt.Errorf("provider selection failed: %w", err)
-	}
-
-	// Get API key for the selected provider
-	apiKeyPrompt := promptui.Prompt{
-		Label: fmt.Sprintf("Enter your %s API key", provider),
-		Validate: func(input string) error {
-			if len(input) < 1 {
-				return fmt.Errorf("API key cannot be empty")
-			}
-			return nil
-		},
-		Mask: '*',
-	}
-
-	apiKey, err := apiKeyPrompt.Run()
-	if err != nil {
-		return nil, fmt.Errorf("API key input failed: %w", err)
-	}
-
-	// Select model for the provider
-	models := llm.GetAvailableModels(llm.ProviderName(provider))
-	modelSelect := promptui.Select{
-		Label: fmt.Sprintf("Select %s model", provider),
-		Items: models,
-	}
-
-	_, model, err := modelSelect.Run()
-	if err != nil {
-		return nil, fmt.Errorf("model selection failed: %w", err)
-	}
-
-	// Create initial config
-	config := &Config{
-		DefaultProvider: provider,
-		Providers: map[string]ProviderConfig{
-			provider: {
-				APIKey: apiKey,
-				Model:  model,
-			},
-		},
-	}
-
-	// Show final configuration
-	data, err := json.MarshalIndent(config, "", "    ")
-	if err != nil {
-		return nil, fmt.Errorf("could not marshal config: %w", err)
-	}
-
-	fmt.Printf("\nConfiguration Preview:\n%s\n\n", string(data))
-
-	// Confirm configuration
-	confirmPrompt := promptui.Prompt{
-		Label:     "Would you like to save this configuration",
-		IsConfirm: true,
-	}
-
-	if _, err := confirmPrompt.Run(); err != nil {
-		return nil, fmt.Errorf("configuration cancelled by user")
-	}
-
-	// Save configuration
-	if err := os.WriteFile(configPath, data, 0600); err != nil {
-		return nil, fmt.Errorf("could not write config file: %w", err)
-	}
-
-	fmt.Printf("\n✅ Configuration file created at %s\n", configPath)
-	return config, nil
 }

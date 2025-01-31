@@ -1,6 +1,14 @@
-# gommit
+# AI Git Commit Message Generator
 
-A smart Git commit message generator powered by AI. `gommit` analyzes your staged changes and generates concise, meaningful commit messages using LLM technology.
+A command-line tool that leverages AI to generate meaningful git commit messages based on your changes.
+
+## Features
+
+- 🤖 AI-powered commit message generation
+- 🚀 Fast and lightweight
+- 🔌 Supports multiple AI providers
+- 💻 Easy-to-use CLI interface
+- ⚙️ Configurable output format
 
 ## Installation
 

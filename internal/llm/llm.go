@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/edhuardotierrez/gommit/internal/config"
 	"github.com/edhuardotierrez/gommit/internal/git"
+	"github.com/edhuardotierrez/gommit/internal/types"
 	"github.com/henomis/lingoose/llm/openai"
 	"github.com/henomis/lingoose/thread"
 )
@@ -25,22 +25,7 @@ Follow these rules:
 5. Start with a verb (e.g., Add, Fix, Update, Refactor, etc.)
 6. Don't end with a period`
 
-type ProviderTypes struct {
-	Title     string
-	Name      ProviderName
-	EnvVarKey string
-}
-
-type ProviderName string
-
-const (
-	ProviderOpenAI    ProviderName = "openai"
-	ProviderAnthropic ProviderName = "anthropic"
-	ProviderCohere    ProviderName = "cohere"
-	ProviderOllama    ProviderName = "ollama"
-)
-
-var Providers = []ProviderTypes{
+var Providers = []types.ProviderTypes{
 	{
 		Title:     "openai",
 		Name:      "OpenAI",
@@ -58,8 +43,40 @@ var Providers = []ProviderTypes{
 	},
 }
 
+// GetAvailableModels returns a list of available models for a given provider
+func GetAvailableModels(provider types.ProviderName) []string {
+	switch provider {
+	case types.ProviderOpenAI:
+		return []string{
+			"gpt-4",
+			"gpt-4-turbo-preview",
+			"gpt-3.5-turbo",
+		}
+	case types.ProviderAnthropic:
+		return []string{
+			"claude-3-opus-20240229",
+			"claude-3-sonnet-20240229",
+			"claude-2.1",
+		}
+	case types.ProviderCohere:
+		return []string{
+			"command",
+			"command-light",
+			"command-nightly",
+		}
+	case types.ProviderOllama:
+		return []string{
+			"llama2",
+			"mistral",
+			"codellama",
+		}
+	default:
+		return []string{}
+	}
+}
+
 // GenerateCommitMessage generates a commit message based on the staged changes
-func GenerateCommitMessage(cfg *config.Config, changes []git.StagedChange) (string, error) {
+func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange) (string, error) {
 	// Prepare the changes summary
 	var summary strings.Builder
 	for _, change := range changes {
@@ -87,26 +104,26 @@ func GenerateCommitMessage(cfg *config.Config, changes []git.StagedChange) (stri
 
 	// Initialize the LLM client based on the provider
 	var err error
-	switch ProviderName(cfg.DefaultProvider) {
-	case ProviderOpenAI:
+	switch types.ProviderName(cfg.DefaultProvider) {
+	case types.ProviderOpenAI:
 		_ = os.Setenv("OPENAI_API_KEY", providerConfig.APIKey)
 		llmClient := openai.New().
 			WithModel(openai.Model(providerConfig.Model))
 		err = llmClient.Generate(context.Background(), myThread)
 
-	case ProviderAnthropic:
+	case types.ProviderAnthropic:
 		_ = os.Setenv("ANTHROPIC_API_KEY", providerConfig.APIKey)
 		llmClient := anthropic.New().
 			WithModel(providerConfig.Model)
 		err = llmClient.Generate(context.Background(), myThread)
 
-	case ProviderCohere:
+	case types.ProviderCohere:
 		_ = os.Setenv("COHERE_API_KEY", providerConfig.APIKey)
 		llmClient := cohere.New().
 			WithModel(cohere.Model(providerConfig.Model))
 		err = llmClient.Generate(context.Background(), myThread)
 
-	case ProviderOllama:
+	case types.ProviderOllama:
 		_ = os.Setenv("OLLAMA_API_KEY", providerConfig.APIKey)
 		llmClient := ollama.New().
 			WithModel(providerConfig.Model)
@@ -128,36 +145,4 @@ func GenerateCommitMessage(cfg *config.Config, changes []git.StagedChange) (stri
 
 	return "", nil
 	//return strings.TrimSpace(messages[len(messages)-1].GetContent()[0].GetText()), nil
-}
-
-// GetAvailableModels returns a list of available models for a given provider
-func GetAvailableModels(provider ProviderName) []string {
-	switch provider {
-	case ProviderOpenAI:
-		return []string{
-			"gpt-4",
-			"gpt-4-turbo-preview",
-			"gpt-3.5-turbo",
-		}
-	case ProviderAnthropic:
-		return []string{
-			"claude-3-opus-20240229",
-			"claude-3-sonnet-20240229",
-			"claude-2.1",
-		}
-	case ProviderCohere:
-		return []string{
-			"command",
-			"command-light",
-			"command-nightly",
-		}
-	case ProviderOllama:
-		return []string{
-			"llama2",
-			"mistral",
-			"codellama",
-		}
-	default:
-		return []string{}
-	}
 }

@@ -7,7 +7,9 @@ import (
 	"github.com/edhuardotierrez/gommit/internal/config"
 	"github.com/edhuardotierrez/gommit/internal/git"
 	"github.com/edhuardotierrez/gommit/internal/llm"
+	"github.com/edhuardotierrez/gommit/internal/setup"
 
+	"github.com/manifoldco/promptui"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -21,12 +23,24 @@ func main() {
 		FullTimestamp: true,
 	})
 
-	// Add version flag
+	// Add flags
 	showVersion := flag.Bool("version", false, "Show version information")
+	runConfig := flag.Bool("config", false, "Run configuration wizard")
 	flag.Parse()
 
 	if *showVersion {
 		log.Infof("gommit version %s", version)
+		return
+	}
+
+	// Run configuration wizard if requested
+	if *runConfig {
+		_, err := setup.CreateConfigWizard(config.GetConfigPath())
+		if err != nil {
+			log.Warnf("Error in configuration wizard: %v", err)
+			os.Exit(1)
+		}
+		log.Info("Configuration completed successfully!")
 		return
 	}
 
@@ -62,12 +76,27 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Preview commit message and ask for confirmation
+	log.Info("Generated commit message:")
+	log.Info("------------------------")
+	log.Info(message)
+	log.Info("------------------------")
+
+	prompt := promptui.Prompt{
+		Label:     "Would you like to proceed with this commit message",
+		IsConfirm: true,
+	}
+
+	if _, err := prompt.Run(); err != nil {
+		log.Info("Commit cancelled by user")
+		os.Exit(0)
+	}
+
 	// Create the commit
 	if err := git.Commit(message); err != nil {
 		log.Warnf("Error creating commit: %v", err)
 		os.Exit(1)
 	}
 
-	log.Info("Successfully created commit with message:")
-	log.Info("%s", message)
+	log.Info("Successfully created commit!")
 }
