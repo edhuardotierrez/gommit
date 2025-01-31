@@ -14,7 +14,7 @@ import (
 func CreateConfigWizard(configPath string) (*types.Config, error) {
 	fmt.Println("\n🎉 Welcome to gommit configuration wizard! 🎉")
 	fmt.Println("The configuration file will be created at", configPath)
-	fmt.Println("This wizard will help you set up your gommit configuration.\n")
+	fmt.Println("This wizard will help you set up your gommit configuration.")
 
 	// Ask if user wants to use the wizard
 	prompt := promptui.Prompt{
