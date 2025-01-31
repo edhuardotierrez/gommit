@@ -22,8 +22,13 @@ Create a configuration file at `~/gommit.json` with your LLM API keys:
 
 ```json
 {
-    "llm_provider": "openai",
-    "api_key": "your-api-key-here"
+  "default_provider": "openai",
+  "providers": {
+    "openai": {
+      "api_key": "sk-proj-*******",
+      "model": "gpt-4o-mini"
+    }
+  }
 }
 ```
 
@@ -40,6 +45,7 @@ Create a configuration file at `~/gommit.json` with your LLM API keys:
 - Supports multiple LLM providers through [lingoose](https://github.com/henomis/lingoose)
 - Reads configuration from user's home directory
 - Falls back to standard git commit output on errors
+
 
 ## License
 

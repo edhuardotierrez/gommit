@@ -27,6 +27,10 @@ var (
 	successOutput = color.New(color.FgGreen).PrintfFunc()
 )
 
+func init() {
+	main()
+}
+
 func main() {
 
 	// Add flags
