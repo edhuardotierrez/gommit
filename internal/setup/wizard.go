@@ -72,6 +72,34 @@ func CreateConfigWizard(configPath string) (*types.Config, error) {
 		return nil, fmt.Errorf("model selection failed: %w", err)
 	}
 
+	// Add temperature prompt
+	temperaturePrompt := promptui.Prompt{
+		Label:     "Enter temperature (0.0-1.0, default: 0.5, press enter to skip)",
+		Default:   "0.5",
+		AllowEdit: true,
+		Validate: func(input string) error {
+			if input == "" {
+				return nil
+			}
+			var temp float64
+			_, err := fmt.Sscanf(input, "%f", &temp)
+			if err != nil || temp < 0 || temp > 1 {
+				return fmt.Errorf("please enter a number between 0 and 1")
+			}
+			return nil
+		},
+	}
+
+	temperatureStr, err := temperaturePrompt.Run()
+	if err != nil {
+		return nil, fmt.Errorf("temperature input failed: %w", err)
+	}
+
+	temperature := 0.7 // default temperature
+	if temperatureStr != "" {
+		fmt.Sscanf(temperatureStr, "%f", &temperature)
+	}
+
 	// Select commit style
 	commitStyleSelect := promptui.Select{
 		Label: "Select commit message style",
@@ -117,8 +145,9 @@ func CreateConfigWizard(configPath string) (*types.Config, error) {
 		DefaultProvider: provider,
 		Providers: map[string]types.ProviderConfig{
 			provider: {
-				APIKey: apiKey,
-				Model:  model,
+				APIKey:      apiKey,
+				Model:       model,
+				Temperature: temperature,
 			},
 		},
 		MaxTokens:   maxTokens,

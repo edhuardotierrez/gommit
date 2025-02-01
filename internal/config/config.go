@@ -25,7 +25,8 @@ var sampleConfigMessage = `
 	"providers": {
 		"openai": {
 			"api_key": "sk-proj-1234567890",
-			"model": "gpt-4o-mini"
+			"model": "gpt-4o-mini",
+			"temperature": 0.5
 		}
 	}
 }
@@ -33,8 +34,9 @@ var sampleConfigMessage = `
 
 // ProviderConfig holds the configuration for a specific LLM provider
 type ProviderConfig struct {
-	APIKey string `json:"api_key"`
-	Model  string `json:"model"`
+	APIKey      string  `json:"api_key"`
+	Model       string  `json:"model"`
+	Temperature float64 `json:"temperature,omitempty"`
 }
 
 // Config holds the application configuration
@@ -79,5 +81,14 @@ func Load() (*types.Config, error) {
 		return nil, fmt.Errorf("api_key is required for provider %s", config.DefaultProvider)
 	}
 
+	if providerConfig.Temperature == 0 {
+		providerConfig.Temperature = 0.7 // Set default temperature if not specified
+	}
+
+	if providerConfig.Temperature < 0 || providerConfig.Temperature > 1 {
+		return nil, fmt.Errorf("temperature must be between 0 and 1 for provider %s", config.DefaultProvider)
+	}
+
+	config.Providers[config.DefaultProvider] = providerConfig
 	return &config, nil
 }

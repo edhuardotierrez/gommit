@@ -2,8 +2,9 @@ package types
 
 // ProviderConfig holds the configuration for a specific LLM provider
 type ProviderConfig struct {
-	APIKey string `json:"api_key"`
-	Model  string `json:"model"`
+	APIKey      string  `json:"api_key"`
+	Model       string  `json:"model"`
+	Temperature float64 `json:"temperature"`
 }
 
 // Config holds the application configuration
@@ -16,7 +17,7 @@ type Config struct {
 
 // Default values for configuration
 const (
-	DefaultMaxTokens   = 150
+	DefaultMaxTokens   = 300
 	DefaultCommitStyle = "conventional" // can be: conventional, simple, detailed
 )
 
@@ -36,4 +37,4 @@ const (
 	ProviderAnthropic ProviderName = "anthropic"
 	ProviderCohere    ProviderName = "cohere"
 	ProviderOllama    ProviderName = "ollama"
-) 
+)

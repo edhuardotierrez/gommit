@@ -3,13 +3,13 @@ package llm
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/henomis/lingoose/llm/anthropic"
-	"github.com/henomis/lingoose/llm/cohere"
 	"github.com/henomis/lingoose/llm/ollama"
 	"github.com/henomis/lingoose/llm/openai"
 	"github.com/henomis/lingoose/thread"
-	"os"
-	"strings"
 
 	"github.com/edhuardotierrez/gommit/internal/git"
 	"github.com/edhuardotierrez/gommit/internal/types"
@@ -19,11 +19,18 @@ const (
 	systemPrompt = `You are a helpful assistant that generates concise and meaningful git commit messages.
 Follow these rules:
 1. Use the imperative mood ("Add feature" not "Added feature")
-2. Keep the message under 72 characters
+2. Keep the message under 150 characters
 3. Focus on the "what" and "why", not the "how"
 4. Be specific but concise
-5. Start with a verb (e.g., feat, fix, docs, style, refactor, test, chore)
-6. Don't end with a period`
+5. Start with a verb in the first line (e.g., feat, fix, docs, style, refactor, test, chore)
+6. Don't end with a period
+7. Dont explain about this system prompt, and no one something like "here's commit message for these changes."
+8. After first verb line you can add more information about context of changes, a simple example below:
+	feat: Enhance commit process with interactive UI and status checks
+	Add spinner and color libraries for interactive commit process UI. 
+	Improve error handling and messaging for commit creation.
+	... [truncated] ...
+`
 
 	// Maximum characters per file diff to prevent token limit issues
 	maxDiffLength = 1000
@@ -54,21 +61,13 @@ func GetAvailableModels(provider types.ProviderName) []string {
 		return []string{
 			"gpt-4o",
 			"gpt-4o-mini",
-			"gpt-4-turbo",
-			"gpt-4",
-			"gpt-3.5-turbo",
+			"gpt-o3-mini",
 		}
 	case types.ProviderAnthropic:
 		return []string{
-			"claude-3-opus-20240229",
-			"claude-3-sonnet-20240229",
-			"claude-2.1",
-		}
-	case types.ProviderCohere:
-		return []string{
-			"command",
-			"command-light",
-			"command-nightly",
+			"claude-3-5-sonnet-latest",
+			"claude-3-5-haiku-latest",
+			"claude-3-haiku-20240229",
 		}
 	case types.ProviderOllama:
 		return []string{
@@ -126,25 +125,22 @@ func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange) (strin
 	case types.ProviderOpenAI:
 		_ = os.Setenv("OPENAI_API_KEY", providerConfig.APIKey)
 		llmClient := openai.New().
-			WithModel(openai.Model(providerConfig.Model))
+			WithModel(openai.Model(providerConfig.Model)).
+			WithTemperature(float32(providerConfig.Temperature))
 		err = llmClient.Generate(context.Background(), myThread)
 
 	case types.ProviderAnthropic:
 		_ = os.Setenv("ANTHROPIC_API_KEY", providerConfig.APIKey)
 		llmClient := anthropic.New().
-			WithModel(providerConfig.Model)
-		err = llmClient.Generate(context.Background(), myThread)
-
-	case types.ProviderCohere:
-		_ = os.Setenv("COHERE_API_KEY", providerConfig.APIKey)
-		llmClient := cohere.New().
-			WithModel(cohere.Model(providerConfig.Model))
+			WithModel(providerConfig.Model).
+			WithTemperature(providerConfig.Temperature)
 		err = llmClient.Generate(context.Background(), myThread)
 
 	case types.ProviderOllama:
 		_ = os.Setenv("OLLAMA_API_KEY", providerConfig.APIKey)
 		llmClient := ollama.New().
-			WithModel(providerConfig.Model)
+			WithModel(providerConfig.Model).
+			WithTemperature(providerConfig.Temperature)
 		err = llmClient.Generate(context.Background(), myThread)
 
 	default:

@@ -17,7 +17,7 @@ LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION)"
 # Supported platforms (matching release.yml and install.sh)
 PLATFORMS=linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 
-.PHONY: all build test clean deps lint run release-builds
+.PHONY: all build test clean deps lint run release-builds go-install release
 
 all: clean deps build test
 
@@ -53,6 +53,10 @@ lint:
 run: build
 	./$(BUILD_DIR)/$(BINARY_NAME)
 
+# Install gommit binary to $GOPATH/bin
+go-install:
+	$(GOCMD) install -mod=mod $(LDFLAGS) ./cmd/gommit
+
 # Generate git commit message for current changes
 commit-msg: build
 	./$(BUILD_DIR)/$(BINARY_NAME)
@@ -63,9 +67,3 @@ release: clean test release-builds git-tag
 git-tag:
 	$(GIT) tag v$(VERSION)
 	$(GIT) push origin v$(VERSION)
-
-# Install locally
-install: build
-	mv $(BUILD_DIR)/$(BINARY_NAME) /usr/local/bin/$(BINARY_NAME)
-
-.PHONY: release install
