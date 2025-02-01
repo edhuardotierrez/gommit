@@ -31,11 +31,13 @@ You can configure gommit in two ways:
 ### 1. Using the Configuration Wizard
 
 Run the configuration wizard:
+
 ```bash
 gommit --config
 ```
 
 The wizard will guide you through setting up:
+
 - AI Provider (e.g., OpenAI)
 - API Key
 - Model selection
@@ -52,7 +54,8 @@ Create a configuration file at `~/gommit.json`:
   "providers": {
     "openai": {
       "api_key": "your-api-key-here",
-      "model": "gpt-3.5-turbo"
+      "model": "gpt-3.5-turbo",
+      "temperature": 0.5
     }
   },
   "max_tokens": 500,
@@ -62,13 +65,13 @@ Create a configuration file at `~/gommit.json`:
 
 ### Configuration Options
 
-| Option | Description | Example Values |
-|--------|-------------|----------------|
-| `default_provider` | The AI provider to use | `"openai"`, `"anthropic"` |
-| `api_key` | Your API key for the provider | `"sk-..."` |
-| `model` | The model to use | `"gpt-3.5-turbo"`, `"gpt-4"` |
-| `max_tokens` | Maximum tokens in the response | `500`, `1000` |
-| `commit_style` | Style of commit messages | `"conventional"`, `"descriptive"` |
+| Option             | Description                    | Example Values                             |
+| ------------------ | ------------------------------ | ------------------------------------------ |
+| `default_provider` | The AI provider to use         | `"openai"`, `"anthropic"`                  |
+| `api_key`          | Your API key for the provider  | `"sk-..."`                                 |
+| `model`            | The model to use               | `"gpt-3.5-turbo"`, `"gpt-4"`               |
+| `max_tokens`       | Maximum tokens in the response | `500`, `1000`                              |
+| `commit_style`     | Style of commit messages       | `"conventional"`, `"simple"`, `"detailed"` |
 
 ## Usage
 

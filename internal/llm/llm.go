@@ -101,6 +101,9 @@ func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange) (strin
 		fmt.Fprintf(&summary, "Diff:\n%s\n\n", truncatedDiff)
 	}
 
+	// add commit_style to the config
+	fmt.Fprintf(&summary, "Commit Style: %s\n", cfg.CommitStyle)
+
 	// Create a new thread with system and user messages
 	myThread := thread.New().
 		AddMessage(thread.NewSystemMessage().AddContent(thread.NewTextContent(systemPrompt))).

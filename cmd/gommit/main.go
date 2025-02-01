@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/edhuardotierrez/gommit/internal/config"
@@ -29,11 +30,26 @@ var (
 )
 
 func main() {
-
 	// Add flags
 	showVersion := flag.Bool("version", false, "Show version information")
 	runConfig := flag.Bool("config", false, "Run configuration wizard")
+
+	// Custom usage message
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of gommit:\n")
+		fmt.Fprintf(os.Stderr, "  gommit [flags]\n\nFlags:\n")
+		flag.PrintDefaults()
+	}
+
+	// Parse and validate flags
 	flag.Parse()
+
+	// Check for invalid flags
+	if flag.NArg() > 0 {
+		errorOutput("Error: invalid argument %q\n", flag.Arg(0))
+		flag.Usage()
+		os.Exit(1)
+	}
 
 	if *showVersion {
 		fmt.Printf("gommit version %s", version)
@@ -47,7 +63,7 @@ func main() {
 			errorOutput("Error in configuration wizard: %v\n", err)
 			os.Exit(1)
 		}
-		successOutput("Configuration completed successfully!\n")
+		successOutput("\nConfiguration completed successfully!\n\n")
 		return
 	}
 
@@ -125,19 +141,24 @@ func main() {
 	}
 
 	// Preview commit message and ask for confirmation
-	randonIcons := []string{"✍️", "✏️", "📝", "💡"}
-	infoOutput(fmt.Sprintf("\n%s Generated commit message (%s):\n", randonIcons[rand.Intn(len(randonIcons))], selectedProvider.Model))
-	infoOutput("------------------------\n")
+	randIcons := []string{"✍️", "✏️", "📝", "💡", "🧠"}
+	title := fmt.Sprintf("\n%s Generated commit message (%s):\n", randIcons[rand.Intn(len(randIcons))], selectedProvider.Model)
+	infoOutput(title)
+	infoOutput(strings.Repeat("-", len(title)) + "\n")
 	fmt.Println(message)
-	infoOutput("------------------------\n")
+	infoOutput("\n---------------------------------------------------------------\n\n")
+
+	labelConfirmation := "✨ Would you like to proceed with this commit message"
+	infoOutput(labelConfirmation)
+	infoOutput(strings.Repeat("-", len(labelConfirmation)))
 
 	prompt := promptui.Prompt{
-		Label:     "✨ Would you like to proceed with this commit message",
+		Label:     labelConfirmation,
 		IsConfirm: true,
 	}
 
 	if _, err := prompt.Run(); err != nil {
-		infoOutput("🚫 Commit cancelled by user\n\n")
+		infoOutput("\n🚫 Commit cancelled by user\n")
 		os.Exit(0)
 	}
 
@@ -151,5 +172,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	successOutput("✅ Successfully created commit!\n\n")
+	successOutput("\n✅ Successfully created commit!\n\n")
 }
