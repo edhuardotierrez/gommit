@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 
@@ -111,8 +112,10 @@ func main() {
 		os.Exit(0)
 	}
 
+	selectedProvider := cfg.Providers[cfg.DefaultProvider]
+
 	// Generate commit message using LLM
-	s.Suffix = " Generating commit message using AI..."
+	s.Suffix = fmt.Sprintf(" Generating commit message using AI (%s)...", selectedProvider.Model)
 	s.Start()
 	message, err := llm.GenerateCommitMessage(cfg, changes)
 	s.Stop()
@@ -122,7 +125,8 @@ func main() {
 	}
 
 	// Preview commit message and ask for confirmation
-	infoOutput("\n📝 Generated commit message:\n")
+	randonIcons := []string{"✍️", "✏️", "📝", "💡"}
+	infoOutput(fmt.Sprintf("\n%s Generated commit message (%s):\n", randonIcons[rand.Intn(len(randonIcons))], selectedProvider.Model))
 	infoOutput("------------------------\n")
 	fmt.Println(message)
 	infoOutput("------------------------\n")
@@ -133,7 +137,7 @@ func main() {
 	}
 
 	if _, err := prompt.Run(); err != nil {
-		infoOutput("🚫 Commit cancelled by user\n")
+		infoOutput("🚫 Commit cancelled by user\n\n")
 		os.Exit(0)
 	}
 
@@ -143,9 +147,9 @@ func main() {
 	err = git.Commit(message)
 	s.Stop()
 	if err != nil {
-		errorOutput("❌ Error creating commit: %v\n", err)
+		errorOutput("❌ Error creating commit: %v\n\n", err)
 		os.Exit(1)
 	}
 
-	successOutput("✅ Successfully created commit!\n")
+	successOutput("✅ Successfully created commit!\n\n")
 }
