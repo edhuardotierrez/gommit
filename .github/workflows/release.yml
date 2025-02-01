@@ -41,7 +41,7 @@ jobs:
           if [ "${{ matrix.goos }}" = "windows" ]; then
             binary_name="$binary_name.exe"
           fi
-          go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o "$binary_name" ./cmd/gommit
+          go build -ldflags="-s -w -X github.com/edhuardotierrez/gommit/pkg/gommit.version=${{ github.ref_name }}" -o "$binary_name" ./cmd/gommit
 
       - name: Upload Release Binary
         uses: softprops/action-gh-release@v1

@@ -12,7 +12,7 @@ MAIN_FILE=cmd/gommit/main.go
 
 # Version from VERSION file
 VERSION := $(shell cat VERSION)
-LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION)"
+LDFLAGS := -ldflags "-s -w -X github.com/edhuardotierrez/gommit/pkg/gommit.version=$(VERSION)"
 
 # Supported platforms (matching release.yml and install.sh)
 PLATFORMS=linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
