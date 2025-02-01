@@ -6,7 +6,7 @@ on:
 
 permissions:
   contents: write
-  actions: write  # This allows workflow modifications
+  actions: write # This allows workflow modifications
 
 jobs:
   releases-matrix:
@@ -20,17 +20,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.23'
+          go-version: "1.23.4"
           check-latest: true
-          
+
       - name: Get version
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-          
+
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
@@ -41,11 +41,11 @@ jobs:
           if [ "${{ matrix.goos }}" = "windows" ]; then
             binary_name="$binary_name.exe"
           fi
-          go build -ldflags="-s -w -X main.version=${{ env.VERSION }}" -o "$binary_name" ./cmd/gommit
-          
+          go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o "$binary_name" ./cmd/gommit
+
       - name: Upload Release Binary
         uses: softprops/action-gh-release@v1
         with:
           files: gommit_${{ matrix.goos }}_${{ matrix.goarch }}*
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
