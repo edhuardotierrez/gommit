@@ -5,34 +5,34 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/edhuardotierrez/gommit/internal/colors"
 	"github.com/edhuardotierrez/gommit/internal/config"
 	"github.com/edhuardotierrez/gommit/internal/git"
 	"github.com/edhuardotierrez/gommit/internal/llm"
 	"github.com/edhuardotierrez/gommit/internal/setup"
 
 	"github.com/briandowns/spinner"
-	"github.com/fatih/color"
 	"github.com/manifoldco/promptui"
 )
 
 var (
 	version = "dev" // This will be overridden during build
-
-	// Define colored output
-	errorOutput   = color.New(color.FgRed).PrintfFunc()
-	infoOutput    = color.New(color.FgCyan).PrintfFunc()
-	descOutput    = color.New(color.FgHiCyan).PrintfFunc()
-	textOutput    = color.New(color.FgWhite).PrintfFunc()
-	successOutput = color.New(color.FgGreen).PrintfFunc()
 )
 
 func Run() {
 	// Add flags
 	showVersion := flag.Bool("version", false, "Show version information")
 	runConfig := flag.Bool("config", false, "Run configuration wizard")
+
+	// optional
+	runWithProvider := flag.String("p", "", "Run with a specific provider (optional)")
+	runWithModel := flag.String("m", "", "Run with a specific model (optional)")
+	runWithTemperature := flag.String("t", "", "Run with a specific temperature (optional)")
+	runWithStyle := flag.String("s", "", "Run with a specific commit style (optional)")
 
 	// Custom usage message
 	flag.Usage = func() {
@@ -46,7 +46,7 @@ func Run() {
 
 	// Check for invalid flags
 	if flag.NArg() > 0 {
-		errorOutput("Error: invalid argument %q\n", flag.Arg(0))
+		colors.ErrorOutput("Error: invalid argument %q\n", flag.Arg(0))
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -60,23 +60,23 @@ func Run() {
 	if *runConfig {
 		_, err := setup.CreateConfigWizard(config.GetConfigPath())
 		if err != nil {
-			errorOutput("Error in configuration wizard: %v\n", err)
+			colors.ErrorOutput("Error in configuration wizard: %v\n", err)
 			os.Exit(1)
 		}
-		successOutput("\nConfiguration completed successfully!\n\n")
+		colors.SuccessOutput("\nConfiguration completed successfully!\n\n")
 		return
 	}
 
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		errorOutput("Error loading configuration: %v\n", err)
+		colors.ErrorOutput("Error loading configuration: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Check if we're in a git repository
 	if !git.IsGitRepository() {
-		errorOutput("Error: not a git repository\n")
+		colors.ErrorOutput("Error: not a git repository\n")
 		os.Exit(1)
 	}
 
@@ -89,7 +89,7 @@ func Run() {
 	changes, err := git.GetStagedChanges()
 	s.Stop()
 	if err != nil {
-		errorOutput("Error getting staged changes: %v\n", err)
+		colors.ErrorOutput("Error getting staged changes: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -97,15 +97,15 @@ func Run() {
 		// Get list of modified but unstaged files
 		unstagedFiles, err := git.GetUnstagedChanges()
 		if err != nil {
-			errorOutput("Error getting unstaged changes: %v\n", err)
+			colors.ErrorOutput("Error getting unstaged changes: %v\n", err)
 			os.Exit(1)
 		}
 
-		errorOutput("\n❌ No staged changes found. Use 'git add' first.\n\n")
+		colors.ErrorOutput("\n❌ No staged changes found. Use 'git add' first.\n\n")
 
 		if len(unstagedFiles) > 0 {
-			descOutput("Modified files that could be staged:\n")
-			descOutput("----------------------------------\n")
+			colors.DescOutput("Modified files that could be staged:\n")
+			colors.DescOutput("----------------------------------\n")
 
 			// Show up to 10 unstaged files
 			maxFiles := 10
@@ -114,43 +114,73 @@ func Run() {
 			}
 
 			for i := 0; i < maxFiles; i++ {
-				textOutput("  • %s (%s)\n", unstagedFiles[i].Path, unstagedFiles[i].Status)
+				colors.TextOutput("  • %s (%s)\n", unstagedFiles[i].Path, unstagedFiles[i].Status)
 			}
 
 			if len(unstagedFiles) > maxFiles {
-				descOutput("\nAnd %d more files...\n", len(unstagedFiles)-maxFiles)
+				colors.DescOutput("\nAnd %d more files...\n", len(unstagedFiles)-maxFiles)
 			}
 
-			descOutput("\nTry: git add <file> to stage specific files\n")
-			descOutput("  or: git add . to stage all files\n")
+			colors.DescOutput("\nTry: git add <file> to stage specific files\n")
+			colors.DescOutput("  or: git add . to stage all files\n")
 		}
 
 		os.Exit(0)
 	}
 
-	selectedProvider := cfg.Providers[cfg.DefaultProvider]
+	var provider = cfg.DefaultProvider
+	var overrides []string
+
+	if *runWithProvider != "" {
+		provider = *runWithProvider
+		overrides = append(overrides, provider)
+	}
+
+	selectedConfig := cfg.Providers[provider]
+
+	// Add model and temperature if provided
+	if *runWithModel != "" {
+		selectedConfig.Model = *runWithModel
+		overrides = append(overrides, fmt.Sprintf("model(%s)", *runWithModel))
+	}
+
+	// if flagTemperature is not 0, set the temperature
+	runWithTemperatureFloat, err := strconv.ParseFloat(*runWithTemperature, 64)
+	if err == nil && runWithTemperatureFloat >= 0.0 {
+		selectedConfig.Temperature = runWithTemperatureFloat
+		overrides = append(overrides, fmt.Sprintf("temperature(%.2f)", runWithTemperatureFloat))
+	}
+
+	if *runWithStyle != "" {
+		selectedConfig.CommitStyle = *runWithStyle
+		overrides = append(overrides, fmt.Sprintf("style(%s)", *runWithStyle))
+	}
+
+	if len(overrides) > 0 {
+		colors.WarningOutput("⚠️ Overriding configuration: %s\n\n", strings.Join(overrides, ", "))
+	}
 
 	// Generate commit message using LLM
-	s.Suffix = fmt.Sprintf(" Generating commit message using AI (%s)...", selectedProvider.Model)
+	s.Suffix = fmt.Sprintf(" Generating commit message using AI (%s)...", selectedConfig.Model)
 	s.Start()
-	message, err := llm.GenerateCommitMessage(cfg, changes)
+	message, err := llm.GenerateCommitMessage(cfg, changes, provider, selectedConfig)
 	s.Stop()
 	if err != nil {
-		errorOutput("Error generating commit message: %v\n", err)
+		colors.ErrorOutput("Error generating commit message: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Preview commit message and ask for confirmation
 	randIcons := []string{"✍️", "✏️", "📝", "💡", "🧠"}
-	title := fmt.Sprintf("\n%s Generated commit message (%s):\n", randIcons[rand.Intn(len(randIcons))], selectedProvider.Model)
-	infoOutput(title)
-	infoOutput(strings.Repeat("-", len(title)) + "\n")
+	title := fmt.Sprintf("\n%s Generated commit message (%s):\n", randIcons[rand.Intn(len(randIcons))], selectedConfig.Model)
+	colors.InfoOutput(title)
+	colors.InfoOutput(strings.Repeat("-", len(title)) + "\n")
 	fmt.Println(message)
-	infoOutput("\n---------------------------------------------------------------\n")
+	colors.InfoOutput("\n---------------------------------------------------------------\n")
 
 	labelConfirmation := "✨ Would you like to proceed with this commit message"
-	infoOutput(labelConfirmation)
-	infoOutput(strings.Repeat("-", len(labelConfirmation)))
+	colors.InfoOutput(labelConfirmation)
+	colors.InfoOutput(strings.Repeat("-", len(labelConfirmation)))
 
 	prompt := promptui.Prompt{
 		Label:     labelConfirmation,
@@ -158,7 +188,7 @@ func Run() {
 	}
 
 	if _, err := prompt.Run(); err != nil {
-		infoOutput("\n🚫 Commit cancelled by user\n")
+		colors.InfoOutput("\n🚫 Commit cancelled by user\n")
 		os.Exit(0)
 	}
 
@@ -168,9 +198,9 @@ func Run() {
 	err = git.Commit(message)
 	s.Stop()
 	if err != nil {
-		errorOutput("❌ Error creating commit: %v\n\n", err)
+		colors.ErrorOutput("❌ Error creating commit: %v\n\n", err)
 		os.Exit(1)
 	}
 
-	successOutput("\n✅ Successfully created commit!\n\n")
+	colors.SuccessOutput("\n✅ Successfully created commit!\n\n")
 }

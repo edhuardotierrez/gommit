@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 
+	"github.com/edhuardotierrez/gommit/internal/colors"
 	"github.com/edhuardotierrez/gommit/internal/llm"
 	"github.com/edhuardotierrez/gommit/internal/types"
 	"github.com/manifoldco/promptui"
@@ -13,8 +15,8 @@ import (
 // CreateConfigWizard creates a new config file with user input
 func CreateConfigWizard(configPath string) (*types.Config, error) {
 	fmt.Println("\n🎉 Welcome to gommit configuration wizard! 🎉")
-	fmt.Println("The configuration file will be created at", configPath)
-	fmt.Println("This wizard will help you set up your gommit configuration.")
+	colors.InfoOutput("The configuration file will be created at %s\n", configPath)
+	colors.InfoOutput("This wizard will help you set up your gommit configuration.\n\n")
 
 	// Ask if user wants to use the wizard
 	prompt := promptui.Prompt{
@@ -42,22 +44,51 @@ func CreateConfigWizard(configPath string) (*types.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("provider selection failed: %w", err)
 	}
-
-	// Get API key for the selected provider
-	apiKeyPrompt := promptui.Prompt{
-		Label: fmt.Sprintf("Enter your %s API key", provider),
-		Validate: func(input string) error {
-			if len(input) < 1 {
-				return fmt.Errorf("API key cannot be empty")
-			}
-			return nil
-		},
-		Mask: '*',
+	// Find provider config
+	var providerConfig types.ProviderTypes
+	for _, p := range llm.Providers {
+		if p.Title == provider {
+			providerConfig = p
+			break
+		}
 	}
 
-	apiKey, err := apiKeyPrompt.Run()
-	if err != nil {
-		return nil, fmt.Errorf("API key input failed: %w", err)
+	var apiKey string
+	if slices.Contains(providerConfig.Required, "api_key") {
+		apiKeyPrompt := promptui.Prompt{
+			Label: fmt.Sprintf("Enter your %s API key", provider),
+			Validate: func(input string) error {
+				if len(input) < 1 {
+					return fmt.Errorf("API key cannot be empty")
+				}
+				return nil
+			},
+			Mask: '*',
+		}
+		apiKey, err = apiKeyPrompt.Run()
+
+		if err != nil {
+			return nil, fmt.Errorf("API key input failed: %w", err)
+		}
+	}
+
+	// Check if URI is required
+	uri := "http://localhost:11434"
+	if slices.Contains(providerConfig.Required, "uri") {
+		uriPrompt := promptui.Prompt{
+			Label:   fmt.Sprintf("Enter %s URI (default: %s)", provider, uri),
+			Default: uri,
+			Validate: func(input string) error {
+				if len(input) < 1 {
+					return fmt.Errorf("URI cannot be empty")
+				}
+				return nil
+			},
+		}
+		uri, err = uriPrompt.Run()
+		if err != nil {
+			return nil, fmt.Errorf("URI input failed: %w", err)
+		}
 	}
 
 	// Select model for the provider
@@ -74,8 +105,8 @@ func CreateConfigWizard(configPath string) (*types.Config, error) {
 
 	// Add temperature prompt
 	temperaturePrompt := promptui.Prompt{
-		Label:     "Enter temperature (0.0-1.0, default: 0.5, press enter to skip)",
-		Default:   "0.5",
+		Label:     "Enter temperature (0.0-1.0, default: 0.7, press enter to skip)",
+		Default:   "0.7",
 		AllowEdit: true,
 		Validate: func(input string) error {
 			if input == "" {
@@ -148,6 +179,7 @@ func CreateConfigWizard(configPath string) (*types.Config, error) {
 				APIKey:      apiKey,
 				Model:       model,
 				Temperature: temperature,
+				URI:         uri,
 			},
 		},
 		MaxTokens:   maxTokens,

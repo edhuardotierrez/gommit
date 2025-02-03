@@ -53,7 +53,7 @@ lint:
 run: build
 	./$(BUILD_DIR)/$(BINARY_NAME)
 
-# Install gommit binary to $GOPATH/bin
+# Install `gommit` binary to $GOPATH/bin
 go-install:
 	$(GOCMD) install -mod=mod $(LDFLAGS) ./cmd/gommit
 

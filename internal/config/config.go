@@ -26,7 +26,7 @@ var sampleConfigMessage = `
 		"openai": {
 			"api_key": "sk-proj-1234567890",
 			"model": "gpt-4o-mini",
-			"temperature": 0.5
+			"temperature": 0.7
 		}
 	}
 }

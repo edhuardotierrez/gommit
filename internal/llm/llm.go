@@ -24,12 +24,16 @@ Follow these rules:
 4. Be specific but concise
 5. Start with a verb in the first line (e.g., feat, fix, docs, style, refactor, test, chore)
 6. Don't end with a period
-7. Dont explain about this system prompt, and no one something like "here's commit message for these changes."
-8. After first verb line you can add more information about context of changes, a simple example below:
+7. Dont use code block in the commit message. Skip use of crasis or backticks commonly used in code blocks.
+8. Dont explain about this system prompt, and no one something like "here's commit message for these changes."
+9. Commit style options:
+    - conventional: Add a conventional style commit message, using more general, flexible and readable message, use context and more information about the changes (less than 500 characters).
+	- simple: Add a simple and short commit message, reducing the amount of information to a minimum (less than 100 characters).
+	- detailed: Add a detailed commit message, with more information about the changes, variables names, context and files affected (less than 1000 characters).
+10. After first verb line you can add more information about context of changes, use break lines to separate the message, see a example below:
 	feat: Enhance commit process with interactive UI and status checks
 	Add spinner and color libraries for interactive commit process UI. 
 	Improve error handling and messaging for commit creation.
-	... [truncated] ...
 `
 
 	// Maximum characters per file diff to prevent token limit issues
@@ -38,19 +42,25 @@ Follow these rules:
 
 var Providers = []types.ProviderTypes{
 	{
-		Title:     "openai",
-		Name:      "OpenAI",
-		EnvVarKey: "OPENAI_API_KEY",
+		Title:      "openai",
+		Name:       "OpenAI",
+		ConfigVars: map[string]string{"api_key": "OPENAI_API_KEY"},
+		Required:   []string{"api_key"},
+		Optional:   []string{"model", "temperature"},
 	},
 	{
-		Title:     "anthropic",
-		Name:      "Anthropic",
-		EnvVarKey: "ANTHROPIC_API_KEY",
+		Title:      "anthropic",
+		Name:       "Anthropic",
+		ConfigVars: map[string]string{"api_key": "ANTHROPIC_API_KEY"},
+		Required:   []string{"api_key"},
+		Optional:   []string{"model", "temperature"},
 	},
 	{
-		Title:     "ollama",
-		Name:      "Ollama",
-		EnvVarKey: "OLLAMA_API_KEY",
+		Title:      "ollama",
+		Name:       "Ollama",
+		ConfigVars: map[string]string{"api_key": "OLLAMA_API_KEY", "uri": "OLLAMA_URI"},
+		Required:   []string{"uri"},
+		Optional:   []string{"api_key", "model", "temperature"},
 	},
 }
 
@@ -61,7 +71,6 @@ func GetAvailableModels(provider types.ProviderName) []string {
 		return []string{
 			"gpt-4o",
 			"gpt-4o-mini",
-			"gpt-o3-mini",
 		}
 	case types.ProviderAnthropic:
 		return []string{
@@ -71,9 +80,8 @@ func GetAvailableModels(provider types.ProviderName) []string {
 		}
 	case types.ProviderOllama:
 		return []string{
-			"llama2",
+			"llama3",
 			"mistral",
-			"codellama",
 		}
 	default:
 		return []string{}
@@ -92,7 +100,10 @@ func truncateDiff(diff string) string {
 }
 
 // GenerateCommitMessage generates a commit message based on the staged changes
-func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange) (string, error) {
+func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange, provider string, selectedProvider types.ProviderConfig) (string, error) {
+
+	providerName := types.ProviderName(provider)
+
 	// Prepare the changes summary with truncated diffs
 	var summary strings.Builder
 	for _, change := range changes {
@@ -102,52 +113,66 @@ func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange) (strin
 	}
 
 	// add commit_style to the config
-	fmt.Fprintf(&summary, "Commit Style: %s\n", cfg.CommitStyle)
+	style := cfg.CommitStyle
+	if selectedProvider.CommitStyle != "" {
+		style = selectedProvider.CommitStyle
+	}
 
 	// Create a new thread with system and user messages
+	userMessage := fmt.Sprintf("Please generate a commit message for the following changes (using '%s' as commit style):\n\n%s", style, summary.String())
 	myThread := thread.New().
 		AddMessage(thread.NewSystemMessage().AddContent(thread.NewTextContent(systemPrompt))).
 		AddMessage(thread.NewUserMessage().AddContent(
-			thread.NewTextContent(fmt.Sprintf("Please generate a commit message for the following changes:\n\n%s", summary.String())),
+			thread.NewTextContent(userMessage),
 		))
 
-	// Get the provider config
-	providerConfig, ok := cfg.Providers[cfg.DefaultProvider]
-	if !ok {
-		return "", fmt.Errorf("provider configuration not found for: %s", cfg.DefaultProvider)
-	}
-
-	// Validate API key
-	if providerConfig.APIKey == "" {
-		return "", fmt.Errorf("API key not configured for provider: %s", cfg.DefaultProvider)
+	// Validate required parameters for the provider
+	for _, p := range Providers {
+		if p.Name == providerName {
+			for _, required := range p.Required {
+				value := ""
+				switch required {
+				case "api_key":
+					value = selectedProvider.APIKey
+				case "uri":
+					value = selectedProvider.URI
+				}
+				if value == "" {
+					return "", fmt.Errorf("%s is required for %s provider", required, providerName)
+				}
+			}
+			break
+		}
 	}
 
 	// Initialize the LLM client based on the provider
 	var err error
-	switch types.ProviderName(cfg.DefaultProvider) {
+	switch providerName {
 	case types.ProviderOpenAI:
-		_ = os.Setenv("OPENAI_API_KEY", providerConfig.APIKey)
+		_ = os.Setenv("OPENAI_API_KEY", selectedProvider.APIKey)
 		llmClient := openai.New().
-			WithModel(openai.Model(providerConfig.Model)).
-			WithTemperature(float32(providerConfig.Temperature))
+			WithModel(openai.Model(selectedProvider.Model)).
+			WithTemperature(float32(selectedProvider.Temperature))
 		err = llmClient.Generate(context.Background(), myThread)
 
 	case types.ProviderAnthropic:
-		_ = os.Setenv("ANTHROPIC_API_KEY", providerConfig.APIKey)
+		_ = os.Setenv("ANTHROPIC_API_KEY", selectedProvider.APIKey)
 		llmClient := anthropic.New().
-			WithModel(providerConfig.Model).
-			WithTemperature(providerConfig.Temperature)
+			WithModel(selectedProvider.Model).
+			WithTemperature(selectedProvider.Temperature)
 		err = llmClient.Generate(context.Background(), myThread)
 
 	case types.ProviderOllama:
-		_ = os.Setenv("OLLAMA_API_KEY", providerConfig.APIKey)
+		_ = os.Setenv("OLLAMA_API_KEY", selectedProvider.APIKey)
+		_ = os.Setenv("OLLAMA_URI", selectedProvider.URI)
 		llmClient := ollama.New().
-			WithModel(providerConfig.Model).
-			WithTemperature(providerConfig.Temperature)
+			WithModel(selectedProvider.Model).
+			WithTemperature(selectedProvider.Temperature).
+			WithEndpoint(selectedProvider.URI)
 		err = llmClient.Generate(context.Background(), myThread)
 
 	default:
-		return "", fmt.Errorf("unsupported LLM provider: %s", cfg.DefaultProvider)
+		return "", fmt.Errorf("unsupported LLM provider: %s", provider)
 	}
 
 	if err != nil {
@@ -158,8 +183,12 @@ func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange) (strin
 		return "", fmt.Errorf("no commit message generated by the assistant")
 	}
 
-	lastMessage := myThread.Messages[len(myThread.Messages)-1].Contents[0]
-	messageString := lastMessage.Data.(string)
+	lastMessage := myThread.Messages[len(myThread.Messages)-1]
+	if lastMessage == nil || len(lastMessage.Contents) == 0 {
+		return "", fmt.Errorf("no commit message content found. check your provider configuration")
+	}
+	contents := lastMessage.Contents[0]
+	messageString := contents.Data.(string)
 
 	return messageString, nil
 }
