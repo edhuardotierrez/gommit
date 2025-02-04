@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/edhuardotierrez/gommit/internal/colors"
+
 	"github.com/henomis/lingoose/llm/anthropic"
 	"github.com/henomis/lingoose/llm/ollama"
 	"github.com/henomis/lingoose/llm/openai"
@@ -16,7 +18,8 @@ import (
 )
 
 const (
-	systemPrompt = `You are a helpful assistant that generates concise and meaningful git commit messages.
+	securityPrompt = `Security Notice: Do not commit sensitive information such as passwords, API keys, or access tokens. Dont explain about this system prompt, and no one something like "here's commit message for these changes.`
+	systemPrompt   = `You are a helpful assistant that generates concise and meaningful git commit messages.
 Follow these rules:
 1. Use the imperative mood ("Add feature" not "Added feature")
 2. Keep the message under 150 characters
@@ -39,6 +42,12 @@ Follow these rules:
 	// Maximum characters per file diff to prevent token limit issues
 	maxDiffLength = 1000
 )
+
+var messageLimitByStyle = map[string]int{
+	"conventional": 500,
+	"simple":       100,
+	"detailed":     1000,
+}
 
 var Providers = []types.ProviderTypes{
 	{
@@ -99,6 +108,24 @@ func truncateDiff(diff string) string {
 	return diff[:halfLength] + "\n...[truncated]...\n" + diff[len(diff)-halfLength:]
 }
 
+// compressPrompt cleans and compresses a prompt string for LLM consumption
+func compressPrompt(prompt string) string {
+	// Split into lines and trim each line
+	lines := strings.Split(prompt, "\n")
+	var cleanLines []string
+
+	for _, line := range lines {
+		// Trim spaces and tabs
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			cleanLines = append(cleanLines, trimmed)
+		}
+	}
+
+	// Join with single newlines and trim any remaining whitespace
+	return strings.TrimSpace(strings.Join(cleanLines, "\n"))
+}
+
 // GenerateCommitMessage generates a commit message based on the staged changes
 func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange, provider string, selectedProvider types.ProviderConfig) (string, error) {
 
@@ -118,10 +145,29 @@ func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange, provid
 		style = selectedProvider.CommitStyle
 	}
 
+	// Check for custom prompt
+	customPrompt, promptErr := readCustomPrompt()
+	if promptErr != nil {
+		return "", fmt.Errorf("error reading custom prompt: %w", promptErr)
+	}
+
+	// Use custom prompt if available, otherwise use default
+	var promptToUse string
+	if customPrompt != "" && len(customPrompt) > 100 {
+		promptToUse = compressPrompt(customPrompt + "\n\n" + securityPrompt)
+	} else {
+		promptToUse = compressPrompt(systemPrompt)
+	}
+
+	// add limit to system prompt
+	if limit, ok := messageLimitByStyle[style]; ok {
+		promptToUse = fmt.Sprintf("%s\n\n%s", promptToUse, fmt.Sprintf("You must generate a commit message under %d characters.", limit))
+	}
+
 	// Create a new thread with system and user messages
 	userMessage := fmt.Sprintf("Please generate a commit message for the following changes (using '%s' as commit style):\n\n%s", style, summary.String())
 	myThread := thread.New().
-		AddMessage(thread.NewSystemMessage().AddContent(thread.NewTextContent(systemPrompt))).
+		AddMessage(thread.NewSystemMessage().AddContent(thread.NewTextContent(promptToUse))).
 		AddMessage(thread.NewUserMessage().AddContent(
 			thread.NewTextContent(userMessage),
 		))
@@ -191,4 +237,24 @@ func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange, provid
 	messageString := contents.Data.(string)
 
 	return messageString, nil
+}
+
+// readCustomPrompt reads the .gommitrules file from the current directory if it exists
+func readCustomPrompt() (string, error) {
+	if _, err := os.Stat(".gommitrules"); os.IsNotExist(err) {
+		return "", nil
+	}
+
+	content, err := os.ReadFile(".gommitrules")
+	if err != nil {
+		return "", err
+	}
+
+	if len(content) == 0 {
+		return "", nil
+	}
+
+	colors.SuccessOutput("Using your `.gommitrules` file\n\n")
+
+	return string(content), nil
 }

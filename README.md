@@ -80,7 +80,8 @@ Create (or edit) a configuration file at `~/gommit.json`:
 | `temperature`      | Temperature for the response   | `0.5`, `1.0`                               |
 | `uri`              | The URI of the provider        | `"http://localhost:11434"`                 |
 
-## Commit Style
+
+### Commit Style
 
 The commit style is the style of the commit message. The default style is `conventional`.
 The available styles are:
@@ -88,6 +89,12 @@ The available styles are:
 - `conventional`: Add a conventional style commit message, using more general, flexible and readablemessage, use context and more information about the changes (less than 500 characters).
 - `simple`: Add a simple and short commit message, reducing the amount of information to a minimum (less than 100 characters).
 - `detailed`: Add a detailed commit message, with more information about the changes, variables names, context and files affected (less than 1000 characters).
+
+## Custom Commit Rules
+
+You can customize the commit message generation rules by creating a `.gommitrules` file in your repository's root directory. This file is optional, and if it is not present, gommit will use the default rules based on your Commit Style.
+
+Note: You are responsible for ensuring commit messages follow these rules.
 
 ## Usage
 
@@ -138,6 +145,7 @@ Note: Before using gommit, you'll need to configure your providers, models, and 
 - [x] Support for configuration wizard (`gommit -config`)
 - [x] Support for persistent configuration file (`~/gommit.json`)
 - [x] Add support for override configuration options with flags
+- [x] Add support for custom commit rules per repository (`.gommitrules`)
 
 ## License
 

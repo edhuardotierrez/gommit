@@ -73,11 +73,10 @@ func CreateConfigWizard(configPath string) (*types.Config, error) {
 	}
 
 	// Check if URI is required
-	uri := "http://localhost:11434"
+	uri := ""
 	if slices.Contains(providerConfig.Required, "uri") {
 		uriPrompt := promptui.Prompt{
-			Label:   fmt.Sprintf("Enter %s URI (default: %s)", provider, uri),
-			Default: uri,
+			Label: fmt.Sprintf("Enter %s URI", provider),
 			Validate: func(input string) error {
 				if len(input) < 1 {
 					return fmt.Errorf("URI cannot be empty")
