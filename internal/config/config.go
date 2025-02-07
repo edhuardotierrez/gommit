@@ -28,7 +28,9 @@ var sampleConfigMessage = `
 			"model": "gpt-4o-mini",
 			"temperature": 0.7
 		}
-	}
+	},
+	"truncate_lines": 100,
+	"max_line_width": 300,
 }
 `
 
@@ -87,6 +89,18 @@ func Load() (*types.Config, error) {
 
 	if providerConfig.Temperature < 0 || providerConfig.Temperature > 1 {
 		return nil, fmt.Errorf("temperature must be between 0 and 1 for provider %s", config.DefaultProvider)
+	}
+
+	if config.TruncateLines == 0 {
+		config.TruncateLines = types.DefaultTruncateLines
+	}
+
+	if config.MaxLineWidth == 0 {
+		config.MaxLineWidth = types.DefaultMaxLineWidth
+	}
+
+	if config.CommitStyle == "" {
+		config.CommitStyle = types.DefaultCommitStyle
 	}
 
 	config.Providers[config.DefaultProvider] = providerConfig

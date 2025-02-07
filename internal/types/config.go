@@ -15,12 +15,16 @@ type Config struct {
 	Providers       map[string]ProviderConfig `json:"providers"`
 	MaxTokens       int                       `json:"max_tokens"`
 	CommitStyle     string                    `json:"commit_style"`
+	TruncateLines   int                       `json:"truncate_lines,omitempty"`
+	MaxLineWidth    int                       `json:"max_line_width"`
 }
 
 // Default values for configuration
 const (
-	DefaultMaxTokens   = 500
-	DefaultCommitStyle = "conventional" // can be: conventional, simple, detailed
+	DefaultMaxTokens     = 500
+	DefaultCommitStyle   = "conventional" // can be: conventional, simple, detailed
+	DefaultTruncateLines = 1000           // default number of context lines in git diff
+	DefaultMaxLineWidth  = 300
 )
 
 // ProviderTypes represents an LLM provider configuration

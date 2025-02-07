@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/edhuardotierrez/gommit/internal/globals"
+
 	"github.com/edhuardotierrez/gommit/internal/colors"
 
 	"github.com/henomis/lingoose/llm/anthropic"
@@ -97,17 +99,6 @@ func GetAvailableModels(provider types.ProviderName) []string {
 	}
 }
 
-// truncateDiff shortens the diff content while keeping the most relevant parts
-func truncateDiff(diff string) string {
-	if len(diff) <= maxDiffLength {
-		return diff
-	}
-
-	// Take first and last parts of the diff to keep context
-	halfLength := maxDiffLength / 2
-	return diff[:halfLength] + "\n...[truncated]...\n" + diff[len(diff)-halfLength:]
-}
-
 // compressPrompt cleans and compresses a prompt string for LLM consumption
 func compressPrompt(prompt string) string {
 	// Split into lines and trim each line
@@ -126,16 +117,57 @@ func compressPrompt(prompt string) string {
 	return strings.TrimSpace(strings.Join(cleanLines, "\n"))
 }
 
+// truncateDiff shortens the diff content while keeping the most relevant parts
+func truncateDiff(diff string, truncateLines int, maxLineWidth int) string {
+	lines := strings.Split(diff, "\n")
+
+	// Truncate line width if needed
+	for i := range lines {
+		if len(lines[i]) > maxLineWidth {
+			lineLength := len(lines[i])
+			if lineLength+20 > maxDiffLength {
+				lines[i] = lines[i][:maxLineWidth] + "...[truncated]..."
+			} else {
+				lines[i] = lines[i][:maxLineWidth]
+			}
+		} else {
+			lines[i] = lines[i]
+		}
+	}
+
+	// If truncateLines is 0, return full diff
+	if truncateLines == 0 {
+		return strings.Join(lines, "\n")
+	}
+
+	// Minimum of 2 lines to show context around the changes
+	if truncateLines <= 3 {
+		colors.WarningOutput("Minimum number of lines to show context is 3. Using 3 lines instead.")
+		truncateLines = 3
+	}
+
+	// If number of lines is less than or equal to truncateLines*2+1, return full diff
+	if len(lines) <= truncateLines*2+1 {
+		return strings.Join(lines, "\n")
+	}
+
+	// Take first and last N lines
+	firstPart := lines[:truncateLines]
+	lastPart := lines[len(lines)-truncateLines:]
+
+	// Join the parts with a truncation marker
+	return strings.Join(firstPart, "\n") + "\n...[truncated]...\n" + strings.Join(lastPart, "\n")
+}
+
 // GenerateCommitMessage generates a commit message based on the staged changes
 func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange, provider string, selectedProvider types.ProviderConfig) (string, error) {
-
 	providerName := types.ProviderName(provider)
 
 	// Prepare the changes summary with truncated diffs
 	var summary strings.Builder
 	for _, change := range changes {
 		fmt.Fprintf(&summary, "File: %s (Status: %s)\n", change.Path, change.Status)
-		truncatedDiff := truncateDiff(change.Diff)
+		truncatedDiff := truncateDiff(change.Diff, cfg.TruncateLines, cfg.MaxLineWidth)
 		fmt.Fprintf(&summary, "Diff:\n%s\n\n", truncatedDiff)
 	}
 
@@ -171,6 +203,10 @@ func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange, provid
 		AddMessage(thread.NewUserMessage().AddContent(
 			thread.NewTextContent(userMessage),
 		))
+
+	if globals.VerboseMode {
+		colors.InfoOutput("\n\n----------------------- User input:\n" + userMessage)
+	}
 
 	// Validate required parameters for the provider
 	for _, p := range Providers {

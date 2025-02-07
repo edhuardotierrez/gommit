@@ -79,7 +79,10 @@ Create (or edit) a configuration file at `~/gommit.json`:
 | `commit_style`     | Style of commit messages       | `"conventional"`, `"simple"`, `"detailed"` |
 | `temperature`      | Temperature for the response   | `0.5`, `1.0`                               |
 | `uri`              | The URI of the provider        | `"http://localhost:11434"`                 |
+| `truncate_lines`   | Number of context lines to include in each file diff | `3`, `5`, `10` |
+| `max_line_width`   | Maximum line width in each file diff | `120`, `100`, `80` |
 
+Note: The default values are `1000` for `truncate_lines` and `300` for `max_line_width`.
 
 ### Commit Style
 
@@ -128,6 +131,10 @@ gommit -s simple
 
 # Use Anthropic's Claude model with high temperature
 gommit -p anthropic -m claude-3-5-sonnet-latest -t 0.8
+
+# Use a specific truncate lines and max line width
+gommit -l 3 -w 120
+
 ```
 
 Note: Before using gommit, you'll need to configure your providers, models, and API keys. You can do this by either:
@@ -146,6 +153,7 @@ Note: Before using gommit, you'll need to configure your providers, models, and 
 - [x] Support for persistent configuration file (`~/gommit.json`)
 - [x] Add support for override configuration options with flags
 - [x] Add support for custom commit rules per repository (`.gommitrules`)
+- [x] Add support for truncate lines and max line width in the diff
 
 ## License
 

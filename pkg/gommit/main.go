@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/edhuardotierrez/gommit/internal/globals"
+
 	"github.com/edhuardotierrez/gommit/internal/colors"
 	"github.com/edhuardotierrez/gommit/internal/config"
 	"github.com/edhuardotierrez/gommit/internal/git"
@@ -27,12 +29,15 @@ func Run() {
 	// Add flags
 	showVersion := flag.Bool("version", false, "Show version information")
 	runConfig := flag.Bool("config", false, "Run configuration wizard")
+	showVerbose := flag.Bool("verbose", false, "Show verbose output")
 
 	// optional
 	runWithProvider := flag.String("p", "", "Run with a specific provider (optional)")
 	runWithModel := flag.String("m", "", "Run with a specific model (optional)")
 	runWithTemperature := flag.String("t", "", "Run with a specific temperature (optional)")
 	runWithStyle := flag.String("s", "", "Run with a specific commit style (optional)")
+	runWithTruncateLines := flag.Int("l", 0, "Run with a specific number of truncate lines (optional)")
+	runWithMaxLineWidth := flag.Int("w", 0, "Run with a specific max line width (optional)")
 
 	// Custom usage message
 	flag.Usage = func() {
@@ -54,6 +59,10 @@ func Run() {
 	if *showVersion {
 		fmt.Printf("gommit version %s", version)
 		return
+	}
+
+	if *showVerbose {
+		globals.VerboseMode = true
 	}
 
 	// Run configuration wizard if requested
@@ -154,6 +163,16 @@ func Run() {
 	if *runWithStyle != "" {
 		selectedConfig.CommitStyle = *runWithStyle
 		overrides = append(overrides, fmt.Sprintf("style(%s)", *runWithStyle))
+	}
+
+	if *runWithTruncateLines > 0 {
+		cfg.TruncateLines = *runWithTruncateLines
+		overrides = append(overrides, fmt.Sprintf("truncate_lines(%d)", *runWithTruncateLines))
+	}
+
+	if *runWithMaxLineWidth > 0 {
+		cfg.MaxLineWidth = *runWithMaxLineWidth
+		overrides = append(overrides, fmt.Sprintf("max_line_width(%d)", *runWithMaxLineWidth))
 	}
 
 	if len(overrides) > 0 {
