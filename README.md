@@ -18,7 +18,7 @@ curl -fsSL https://raw.githubusercontent.com/edhuardotierrez/gommit/main/install
 
 ### Build and install manually (Any OS)
 
-Required **Go 1.23+** ([https://go.dev/dl/](https://go.dev/dl/))
+Required **Go 1.25+** ([https://go.dev/dl/](https://go.dev/dl/))
 
 ```bash
 go install github.com/edhuardotierrez/gommit@latest
@@ -70,17 +70,17 @@ Create (or edit) a configuration file at `~/gommit.json`:
 
 ### Configuration Options
 
-| Option             | Description                    | Example Values                             |
-| ------------------ | ------------------------------ | ------------------------------------------ |
-| `default_provider` | The AI provider to use         | `"openai"`, `"anthropic"`                  |
-| `api_key`          | Your API key for the provider  | `"sk-..."`                                 |
-| `model`            | The model to use               | `"gpt-4o-mini"`, `"gpt-4"`                 |
-| `max_tokens`       | Maximum tokens in the response | `500`, `1000`                              |
-| `commit_style`     | Style of commit messages       | `"conventional"`, `"simple"`, `"detailed"` |
-| `temperature`      | Temperature for the response   | `0.5`, `1.0`                               |
-| `uri`              | The URI of the provider        | `"http://localhost:11434"`                 |
-| `truncate_lines`   | Number of context lines to include in each file diff | `3`, `5`, `10` |
-| `max_line_width`   | Maximum line width in each file diff | `120`, `100`, `80` |
+| Option             | Description                                          | Example Values                             |
+| ------------------ | ---------------------------------------------------- | ------------------------------------------ |
+| `default_provider` | The AI provider to use                               | `"openai"`, `"anthropic"`                  |
+| `api_key`          | Your API key for the provider                        | `"sk-..."`                                 |
+| `model`            | The model to use                                     | `"gpt-4o-mini"`, `"gpt-4"`                 |
+| `max_tokens`       | Maximum tokens in the response                       | `500`, `1000`                              |
+| `commit_style`     | Style of commit messages                             | `"conventional"`, `"simple"`, `"detailed"` |
+| `temperature`      | Temperature for the response                         | `0.5`, `1.0`                               |
+| `uri`              | The URI of the provider                              | `"http://localhost:11434"`                 |
+| `truncate_lines`   | Number of context lines to include in each file diff | `3`, `5`, `10`                             |
+| `max_line_width`   | Maximum line width in each file diff                 | `120`, `100`, `80`                         |
 
 Note: The default values are `1000` for `truncate_lines` and `300` for `max_line_width`.
 

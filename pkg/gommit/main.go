@@ -9,16 +9,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/edhuardotierrez/gommit/internal/globals"
+	"github.com/briandowns/spinner"
+	"github.com/manifoldco/promptui"
 
 	"github.com/edhuardotierrez/gommit/internal/colors"
 	"github.com/edhuardotierrez/gommit/internal/config"
 	"github.com/edhuardotierrez/gommit/internal/git"
+	"github.com/edhuardotierrez/gommit/internal/globals"
 	"github.com/edhuardotierrez/gommit/internal/llm"
 	"github.com/edhuardotierrez/gommit/internal/setup"
-
-	"github.com/briandowns/spinner"
-	"github.com/manifoldco/promptui"
 )
 
 var (

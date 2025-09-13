@@ -6,16 +6,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/edhuardotierrez/gommit/internal/globals"
-
-	"github.com/edhuardotierrez/gommit/internal/colors"
-
 	"github.com/henomis/lingoose/llm/anthropic"
 	"github.com/henomis/lingoose/llm/ollama"
 	"github.com/henomis/lingoose/llm/openai"
 	"github.com/henomis/lingoose/thread"
 
+	"github.com/edhuardotierrez/gommit/internal/colors"
 	"github.com/edhuardotierrez/gommit/internal/git"
+	"github.com/edhuardotierrez/gommit/internal/globals"
 	"github.com/edhuardotierrez/gommit/internal/types"
 )
 

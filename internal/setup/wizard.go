@@ -6,10 +6,11 @@ import (
 	"os"
 	"slices"
 
+	"github.com/manifoldco/promptui"
+
 	"github.com/edhuardotierrez/gommit/internal/colors"
 	"github.com/edhuardotierrez/gommit/internal/llm"
 	"github.com/edhuardotierrez/gommit/internal/types"
-	"github.com/manifoldco/promptui"
 )
 
 // CreateConfigWizard creates a new config file with user input
