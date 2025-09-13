@@ -27,7 +27,7 @@ var (
 func Run() {
 	// Add flags
 	showVersion := flag.Bool("version", false, "Show version information")
-	runConfig := flag.Bool("config", false, "Run configuration wizard")
+	runConfig := flag.Bool("config", false, "Run configuration tools (subcommands: wizard|edit|provider)")
 	showVerbose := flag.Bool("verbose", false, "Show verbose output")
 
 	// optional
@@ -48,7 +48,52 @@ func Run() {
 	// Parse and validate flags
 	flag.Parse()
 
-	// Check for invalid flags
+	// Handle configuration flows early (supporting subcommands)
+	if *runConfig {
+		args := flag.Args()
+		if len(args) == 0 {
+			colors.ErrorOutput("Error: -config requires a subcommand (wizard|edit|provider)\n")
+			os.Exit(1)
+		} else if args[0] == "wizard" {
+			_, err := setup.CreateConfigWizard(config.GetConfigPath())
+			if err != nil {
+				colors.ErrorOutput("Error in configuration wizard: %v\n", err)
+				os.Exit(1)
+			}
+			colors.SuccessOutput("\nConfiguration completed successfully!\n\n")
+			return
+		}
+
+		switch args[0] {
+		case "edit":
+			if err := setup.EditConfigInEditor(config.GetConfigPath()); err != nil {
+				colors.ErrorOutput("Error opening editor: %v\n", err)
+				os.Exit(1)
+			}
+			colors.SuccessOutput("\nConfig file edited.\n\n")
+			return
+		case "provider":
+			if err := setup.EditProviderWizard(config.GetConfigPath()); err != nil {
+				colors.ErrorOutput("Error editing provider: %v\n", err)
+				os.Exit(1)
+			}
+			colors.SuccessOutput("\nProvider updated successfully!\n\n")
+			return
+		case "defaults":
+			if err := setup.EditDefaultsWizard(config.GetConfigPath()); err != nil {
+				colors.ErrorOutput("Error editing defaults: %v\n", err)
+				os.Exit(1)
+			}
+			colors.SuccessOutput("\nDefaults updated successfully!\n\n")
+			return
+		default:
+			colors.ErrorOutput("Error: invalid -config subcommand %q (expected: wizard|edit|provider)\n", args[0])
+			flag.Usage()
+			os.Exit(1)
+		}
+	}
+
+	// Check for invalid trailing args when not using -config
 	if flag.NArg() > 0 {
 		colors.ErrorOutput("Error: invalid argument %q\n", flag.Arg(0))
 		flag.Usage()
@@ -64,16 +109,7 @@ func Run() {
 		globals.VerboseMode = true
 	}
 
-	// Run configuration wizard if requested
-	if *runConfig {
-		_, err := setup.CreateConfigWizard(config.GetConfigPath())
-		if err != nil {
-			colors.ErrorOutput("Error in configuration wizard: %v\n", err)
-			os.Exit(1)
-		}
-		colors.SuccessOutput("\nConfiguration completed successfully!\n\n")
-		return
-	}
+	// (handled above) -config
 
 	// Load configuration
 	cfg, err := config.Load()

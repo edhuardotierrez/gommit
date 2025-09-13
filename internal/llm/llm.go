@@ -6,10 +6,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/henomis/lingoose/llm/anthropic"
-	"github.com/henomis/lingoose/llm/ollama"
-	"github.com/henomis/lingoose/llm/openai"
-	"github.com/henomis/lingoose/thread"
+	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/anthropic"
+	"github.com/tmc/langchaingo/llms/googleai"
+	"github.com/tmc/langchaingo/llms/ollama"
+	"github.com/tmc/langchaingo/llms/openai"
 
 	"github.com/edhuardotierrez/gommit/internal/colors"
 	"github.com/edhuardotierrez/gommit/internal/git"
@@ -71,6 +72,13 @@ var Providers = []types.ProviderTypes{
 		Required:   []string{"uri"},
 		Optional:   []string{"api_key", "model", "temperature"},
 	},
+	{
+		Title:      "google",
+		Name:       "Google",
+		ConfigVars: map[string]string{"api_key": "GOOGLE_API_KEY"},
+		Required:   []string{"api_key"},
+		Optional:   []string{"model", "temperature"},
+	},
 }
 
 // GetAvailableModels returns a list of available models for a given provider
@@ -78,19 +86,31 @@ func GetAvailableModels(provider types.ProviderName) []string {
 	switch provider {
 	case types.ProviderOpenAI:
 		return []string{
-			"gpt-4o",
+			"gpt-5-nano",
+			"gpt-5-mini",
+			"gpt-5",
 			"gpt-4o-mini",
+			"gpt-4o",
+			"gpt-4.1-nano",
+			"gpt-4.1-mini",
 		}
 	case types.ProviderAnthropic:
 		return []string{
+			"claude-4-sonnet-latest",
 			"claude-3-5-sonnet-latest",
 			"claude-3-5-haiku-latest",
-			"claude-3-haiku-20240229",
+			"claude-3-haiku-20240307",
 		}
 	case types.ProviderOllama:
 		return []string{
 			"llama3",
 			"mistral",
+		}
+	case types.ProviderGoogle:
+		return []string{
+			"gemini-2.5-flash-lite",
+			"gemini-2.5-flash",
+			"gemini-2.5-pro",
 		}
 	default:
 		return []string{}
@@ -128,8 +148,6 @@ func truncateDiff(diff string, truncateLines int, maxLineWidth int) string {
 			} else {
 				lines[i] = lines[i][:maxLineWidth]
 			}
-		} else {
-			lines[i] = lines[i]
 		}
 	}
 
@@ -194,13 +212,9 @@ func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange, provid
 		promptToUse = fmt.Sprintf("%s\n\n%s", promptToUse, fmt.Sprintf("You must generate a commit message under %d characters.", limit))
 	}
 
-	// Create a new thread with system and user messages
+	// Compose prompt (system + user) for single-shot generation
 	userMessage := fmt.Sprintf("Please generate a commit message for the following changes (using '%s' as commit style):\n\n%s", style, summary.String())
-	myThread := thread.New().
-		AddMessage(thread.NewSystemMessage().AddContent(thread.NewTextContent(promptToUse))).
-		AddMessage(thread.NewUserMessage().AddContent(
-			thread.NewTextContent(userMessage),
-		))
+	combinedPrompt := compressPrompt(promptToUse + "\n\n" + userMessage)
 
 	if globals.VerboseMode {
 		colors.InfoOutput("\n\n----------------------- User input:\n" + userMessage)
@@ -226,51 +240,81 @@ func GenerateCommitMessage(cfg *types.Config, changes []git.StagedChange, provid
 	}
 
 	// Initialize the LLM client based on the provider
-	var err error
+	var (
+		client llms.Model
+		err    error
+	)
 	switch providerName {
 	case types.ProviderOpenAI:
 		_ = os.Setenv("OPENAI_API_KEY", selectedProvider.APIKey)
-		llmClient := openai.New().
-			WithModel(openai.Model(selectedProvider.Model)).
-			WithTemperature(float32(selectedProvider.Temperature))
-		err = llmClient.Generate(context.Background(), myThread)
+		client, err = openai.New()
 
 	case types.ProviderAnthropic:
 		_ = os.Setenv("ANTHROPIC_API_KEY", selectedProvider.APIKey)
-		llmClient := anthropic.New().
-			WithModel(selectedProvider.Model).
-			WithTemperature(selectedProvider.Temperature)
-		err = llmClient.Generate(context.Background(), myThread)
+		client, err = anthropic.New()
 
 	case types.ProviderOllama:
 		_ = os.Setenv("OLLAMA_API_KEY", selectedProvider.APIKey)
 		_ = os.Setenv("OLLAMA_URI", selectedProvider.URI)
-		llmClient := ollama.New().
-			WithModel(selectedProvider.Model).
-			WithTemperature(selectedProvider.Temperature).
-			WithEndpoint(selectedProvider.URI)
-		err = llmClient.Generate(context.Background(), myThread)
+		client, err = ollama.New(ollama.WithServerURL(selectedProvider.URI))
+
+	case types.ProviderGoogle:
+		_ = os.Setenv("GOOGLE_API_KEY", selectedProvider.APIKey)
+		client, err = googleai.New(context.Background())
 
 	default:
 		return "", fmt.Errorf("unsupported LLM provider: %s", provider)
 	}
 
 	if err != nil {
+		return "", fmt.Errorf("error initializing LLM client: %w", err)
+	}
+
+	// Apply per-call options
+	var callOptions []llms.CallOption
+	if selectedProvider.Model != "" {
+		callOptions = append(callOptions, llms.WithModel(selectedProvider.Model))
+	}
+
+	// Temperature policy: some models accept only the provider's default temperature
+	if requiresDefaultTemperature(providerName, selectedProvider.Model) {
+		// Force default temperature to 1.0 for these models
+		callOptions = append(callOptions, llms.WithTemperature(1.0))
+	} else if selectedProvider.Temperature > 0 {
+		callOptions = append(callOptions, llms.WithTemperature(selectedProvider.Temperature))
+	}
+
+	// Generate
+	response, err := llms.GenerateFromSinglePrompt(context.Background(), client, combinedPrompt, callOptions...)
+	if err != nil {
 		return "", fmt.Errorf("error generating commit message: %w", err)
 	}
-
-	if len(myThread.Messages) < 3 {
-		return "", fmt.Errorf("no commit message generated by the assistant")
-	}
-
-	lastMessage := myThread.Messages[len(myThread.Messages)-1]
-	if lastMessage == nil || len(lastMessage.Contents) == 0 {
+	if strings.TrimSpace(response) == "" {
 		return "", fmt.Errorf("no commit message content found. check your provider configuration")
 	}
-	contents := lastMessage.Contents[0]
-	messageString := contents.Data.(string)
 
-	return messageString, nil
+	return response, nil
+}
+
+// requiresDefaultTemperature indicates whether a given provider/model only supports the default
+// temperature value. For these models we explicitly set temperature to 1.0 to avoid API errors.
+func requiresDefaultTemperature(provider types.ProviderName, model string) bool {
+	if provider != types.ProviderOpenAI {
+		return false
+	}
+	// Known OpenAI model families that enforce default (1.0) temperature only.
+	// Keep prefixes to catch variants and future suffixes.
+	prefixes := []string{
+		"gpt-5",
+		"gpt-4.1",
+		"gpt-4o",
+	}
+	for _, p := range prefixes {
+		if strings.HasPrefix(model, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // readCustomPrompt reads the .gommitrules file from the current directory if it exists

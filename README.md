@@ -55,7 +55,7 @@ Create (or edit) a configuration file at `~/gommit.json`:
     "openai": {
       "api_key": "your-api-key-here",
       "model": "gpt-4o-mini",
-      "temperature": 0.5
+      "temperature": 1.0
     },
     "ollama": {
       "uri": "http://localhost:11434",
@@ -74,10 +74,10 @@ Create (or edit) a configuration file at `~/gommit.json`:
 | ------------------ | ---------------------------------------------------- | ------------------------------------------ |
 | `default_provider` | The AI provider to use                               | `"openai"`, `"anthropic"`                  |
 | `api_key`          | Your API key for the provider                        | `"sk-..."`                                 |
-| `model`            | The model to use                                     | `"gpt-4o-mini"`, `"gpt-4"`                 |
+| `model`            | The model to use                                     | `"gpt-4o-mini"`, `"gpt-5"`                 |
 | `max_tokens`       | Maximum tokens in the response                       | `500`, `1000`                              |
 | `commit_style`     | Style of commit messages                             | `"conventional"`, `"simple"`, `"detailed"` |
-| `temperature`      | Temperature for the response                         | `0.5`, `1.0`                               |
+| `temperature`      | Temperature for the response (range: 0.0-1.0)        | default is `1.0`                           |
 | `uri`              | The URI of the provider                              | `"http://localhost:11434"`                 |
 | `truncate_lines`   | Number of context lines to include in each file diff | `3`, `5`, `10`                             |
 | `max_line_width`   | Maximum line width in each file diff                 | `120`, `100`, `80`                         |
@@ -104,7 +104,7 @@ Note: You are responsible for ensuring commit messages follow these rules.
 System requirements:
 
 - Git installed (1.8.5+) [https://git-scm.com/downloads]
-- AI provider API key (e.g. OpenAI, Anthropic, Ollama, etc.)
+- AI provider API key (e.g. OpenAI, Anthropic, Google, Ollama, etc.)
 
 Steps:
 
@@ -123,8 +123,8 @@ gommit -p <provider> -m <model> -t <temperature> -s <style>
 Examples:
 
 ```bash
-# Use OpenAI's GPT-4o-mini model with custom settings
-gommit -p openai -m gpt-4o-mini -t 0.5 -s detailed
+# Use OpenAI's GPT-5-mini model with custom settings
+gommit -p openai -m gpt-5-mini -t 0.5 -s detailed
 
 # Use a simple short commit message
 gommit -s simple
@@ -142,18 +142,20 @@ Note: Before using gommit, you'll need to configure your providers, models, and 
 - Running the configuration wizard with `gommit -config`
 - Manually editing the configuration file at `~/gommit.json`
 
-## Todo:
+## Support for main AI providers:
 
-- [x] Add support for main AI providers:
-  - [x] OpenAI
-  - [x] Anthropic
-  - [x] Ollama
-  - [ ] Gemini
-- [x] Support for configuration wizard (`gommit -config`)
-- [x] Support for persistent configuration file (`~/gommit.json`)
-- [x] Add support for override configuration options with flags
+- [x] OpenAI
+- [x] Anthropic
+- [x] Ollama
+- [x] Google/Gemini
 - [x] Add support for custom commit rules per repository (`.gommitrules`)
-- [x] Add support for truncate lines and max line width in the diff
+
+## Support for configuration:
+
+- [x] Wizard to create a new configuration file (`gommit -config`)
+- [x] Editor to edit the configuration file (using the editor configured in the environment variables `VISUAL` or `EDITOR`) (`gommit -config edit`)
+- [x] Editor to edit the providers (`gommit -config provider`)
+- [x] Editor to edit the defaults variables (`gommit -config defaults`)
 
 ## License
 

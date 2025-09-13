@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/edhuardotierrez/gommit/internal/env"
 	"github.com/edhuardotierrez/gommit/internal/setup"
 	"github.com/edhuardotierrez/gommit/internal/types"
 )
@@ -49,6 +50,9 @@ type Config struct {
 
 // Load reads the configuration file from the user's home directory
 func Load() (*types.Config, error) {
+
+	env.LoadFile()
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("could not get user home directory: %w", err)

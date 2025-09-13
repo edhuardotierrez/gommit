@@ -41,7 +41,8 @@ type ProviderName string
 
 // Provider constants
 const (
-	ProviderOpenAI    ProviderName = "openai"
 	ProviderAnthropic ProviderName = "anthropic"
+	ProviderGoogle    ProviderName = "google"
+	ProviderOpenAI    ProviderName = "openai"
 	ProviderOllama    ProviderName = "ollama"
 )
